@@ -233,10 +233,8 @@
         const data = await res.json();
 
         if (res.ok && data.ok) {
-          // Clear password from input immediately
           passwordInput.value = '';
-          // Redirect to IDE
-          window.location.href = '/';
+          window.location.href = data.redirect || '/';
         } else if (res.status === 429) {
           showError('Too many failed attempts. Please wait 15 minutes.');
           loginBtn.disabled = true;

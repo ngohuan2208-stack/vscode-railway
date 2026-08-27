@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Select Repository - VS Code Railway</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #1e1e1e; --surface: #252526; --surface2: #2d2d2d; --border: #3c3c3c;
+      --text: #cccccc; --text-muted: #808080; --accent: #007acc; --accent-hover: #0098ff;
+      --green: #4caf50; --red: #f44336; --yellow: #ff9800; --purple: #9c27b0;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ── Loading Overlay ─────────────────────────────────────── */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 9999; flex-direction: column; gap: 24px; }
+    .overlay.active { display: flex; }
+    .overlay-spinner { width: 60px; height: 60px; border: 4px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+    .overlay-text { font-size: 18px; color: #fff; font-weight: 500; }
+    .overlay-sub { font-size: 13px; color: var(--text-muted); }
+    .overlay-steps { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+    .overlay-step { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--text-muted); }
+    .overlay-step.done { color: var(--green); }
+    .overlay-step.active { color: var(--accent); }
+    .overlay-step .check { width: 20px; text-align: center; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .header-left { display: flex; align-items: center; gap: 16px; }
+    .avatar { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--border); }
+    .user-info h2 { font-size: 16px; color: #fff; font-weight: 600; }
+    .user-info p { font-size: 12px; color: var(--text-muted); }
+    .header-links { display: flex; gap: 8px; }
+    .header-links a { color: var(--text-muted); text-decoration: none; font-size: 13px; padding: 6px 12px; border-radius: 4px; transition: all 0.2s; }
+    .header-links a:hover { color: #fff; background: var(--surface2); }
+
+    /* ── Main ───────────────────────────────────────────────── */
+    .main { max-width: 960px; margin: 0 auto; padding: 32px 24px; }
+
+    .search-bar { position: relative; margin-bottom: 24px; }
+    .search-bar input { width: 100%; padding: 12px 16px 12px 44px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: #fff; font-size: 15px; outline: none; }
+    .search-bar input:focus { border-color: var(--accent); }
+    .search-bar input::placeholder { color: var(--text-muted); }
+    .search-bar .icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 18px; }
+
+    .tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+    .tab { padding: 8px 16px; border-radius: 4px 4px 0 0; cursor: pointer; font-size: 13px; color: var(--text-muted); transition: all 0.2s; border: none; background: none; }
+    .tab.active { color: #fff; background: var(--accent); }
+    .tab:hover:not(.active) { color: var(--text); background: var(--surface2); }
+
+    .repo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+    .repo-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; cursor: pointer; transition: all 0.2s; position: relative; }
+    .repo-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    .repo-card .name { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+    .repo-card .desc { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .repo-card .meta { display: flex; gap: 12px; font-size: 11px; color: var(--text-muted); }
+    .repo-card .meta span { display: flex; align-items: center; gap: 4px; }
+    .badge { font-size: 10px; padding: 2px 6px; border-radius: 3px; font-weight: 500; }
+    .badge-private { background: rgba(255, 152, 0, 0.15); color: var(--yellow); }
+    .badge-public { background: rgba(76, 175, 80, 0.15); color: var(--green); }
+    .lang-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+    .loading { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 13px; padding: 40px; justify-content: center; }
+    .spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+
+    .empty { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+    .empty p { margin-bottom: 8px; font-size: 14px; }
+
+    .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); text-decoration: none; font-size: 13px; margin-bottom: 20px; }
+    .back-link:hover { color: var(--accent); }
+
+    .toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; border-radius: 6px; font-size: 13px; z-index: 10000; animation: slideIn 0.3s ease; }
+    .toast-error { background: var(--red); color: #fff; }
+    @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    @media (max-width: 640px) {
+      .repo-grid { grid-template-columns: 1fr; }
+      .header { flex-direction: column; gap: 12px; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading Overlay -->
+  <div class="overlay" id="overlay">
+    <div class="overlay-spinner"></div>
+    <div class="overlay-text" id="overlay-title">Cloning repository...</div>
+    <div class="overlay-sub" id="overlay-repo"></div>
+    <div class="overlay-steps">
+      <div class="overlay-step" id="step-clone"><span class="check">&#x25CB;</span> Cloning repository</div>
+      <div class="overlay-step" id="step-config"><span class="check">&#x25CB;</span> Configuring git</div>
+      <div class="overlay-step" id="step-open"><span class="check">&#x25CB;</span> Opening VS Code</div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <img class="avatar" id="avatar" src="" alt="">
+      <div class="user-info">
+        <h2 id="username">Loading...</h2>
+        <p>Select a repository to open in VS Code</p>
+      </div>
+    </div>
+    <div class="header-links">
+      <a href="/settings">Settings</a>
+      <a href="/">VS Code</a>
+      <a href="/logout">Logout</a>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="search-bar">
+      <span class="icon">&#x1F50D;</span>
+      <input type="text" id="search" placeholder="Search repositories..." autofocus>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="mine">My Repos</button>
+      <button class="tab" data-tab="orgs">Organizations</button>
+      <button class="tab" data-tab="local">Local Projects</button>
+    </div>
+
+    <div id="content">
+      <div class="loading"><div class="spinner"></div> Loading repositories...</div>
+    </div>
+  </div>
+
+  <script>
+    const LANG_COLORS = {
+      JavaScript: '#f1e05a', TypeScript: '#3178c6', Python: '#3572A5', Java: '#b07219',
+      Go: '#00ADD8', Rust: '#dea584', Ruby: '#701516', PHP: '#4F5D95',
+      'C++': '#f34b7d', C: '#555555', 'C#': '#178600', Swift: '#F05138',
+      Kotlin: '#A97BFF', Dart: '#00B4AB', Shell: '#89e051', HTML: '#e34c26',
+      CSS: '#563d7c', Vue: '#41b883', Svelte: '#ff3e00', Lua: '#000080',
+    };
+
+    let allRepos = [];
+    let currentTab = 'mine';
+    let orgsCache = null;
+
+    function toast(msg) {
+      const el = document.createElement('div');
+      el.className = 'toast toast-error'; el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 4000);
+    }
+
+    async function api(path) {
+      const res = await fetch(path);
+      return { status: res.status, data: await res.json() };
+    }
+
+    // ── Load user info ──────────────────────────────────────
+    async function loadUser() {
+      const { data } = await api('/api/github/user');
+      if (data.login) {
+        document.getElementById('username').textContent = data.login;
+        document.getElementById('avatar').src = data.avatar_url || '';
+        document.getElementById('avatar').style.display = data.avatar_url ? 'block' : 'none';
+      }
+    }
+
+    // ── Load repos ──────────────────────────────────────────
+    async function loadRepos() {
+      const el = document.getElementById('content');
+      el.innerHTML = '<div class="loading"><div class="spinner"></div> Loading repositories...</div>';
+      const { status, data } = await api('/api/github/repos');
+      if (status !== 200) { el.innerHTML = `<div class="empty"><p>${data.error}</p></div>`; return; }
+      allRepos = data.repos;
+      renderRepos(allRepos);
+    }
+
+    function renderRepos(repos) {
+      const el = document.getElementById('content');
+      if (repos.length === 0) { el.innerHTML = '<div class="empty"><p>No repositories found</p></div>'; return; }
+      el.innerHTML = `<div class="repo-grid">${repos.map(r => {
+        const color = LANG_COLORS[r.language] || '#808080';
+        return `<div class="repo-card" onclick="cloneAndOpen('${r.url}','${r.name}')">
+          <div class="name">${r.name} <span class="badge ${r.private ? 'badge-private' : 'badge-public'}">${r.private ? 'Private' : 'Public'}</span></div>
+          ${r.description ? `<div class="desc">${r.description}</div>` : '<div class="desc" style="opacity:0.3">No description</div>'}
+          <div class="meta">
+            ${r.language ? `<span><span class="lang-dot" style="background:${color}"></span> ${r.language}</span>` : ''}
+            <span>&#x1F4C5; ${new Date(r.updated_at).toLocaleDateString()}</span>
+          </div>
+        </div>`;
+      }).join('')}</div>`;
+    }
+
+    // ── Load orgs ───────────────────────────────────────────
+    async function loadOrgs() {
+      const el = document.getElementById('content');
+      el.innerHTML = '<div class="loading"><div class="spinner"></div> Loading organizations...</div>';
+      if (orgsCache) return renderOrgs(orgsCache);
+      const { status, data } = await api('/api/github/orgs');
+      if (status !== 200) { el.innerHTML = `<div class="empty"><p>${data.error}</p></div>`; return; }
+      orgsCache = data.orgs;
+      renderOrgs(data.orgs);
+    }
+
+    function renderOrgs(orgs) {
+      const el = document.getElementById('content');
+      if (orgs.length === 0) { el.innerHTML = '<div class="empty"><p>No organizations</p></div>'; return; }
+      el.innerHTML = `<div class="repo-grid">${orgs.map(o => `
+        <div class="repo-card" onclick="loadOrgRepos('${o.login}')">
+          <div class="name"><img src="${o.avatar_url}" style="width:20px;height:20px;border-radius:4px"> ${o.login}</div>
+          <div class="desc">Organization</div>
+        </div>`).join('')}</div>`;
+    }
+
+    async function loadOrgRepos(org) {
+      const el = document.getElementById('content');
+      el.innerHTML = `<div class="loading"><div class="spinner"></div> Loading ${org} repos...</div>`;
+      const { status, data } = await api(`/api/github/orgs/${org}/repos`);
+      if (status !== 200) { el.innerHTML = `<div class="empty"><p>${data.error}</p></div>`; return; }
+      el.innerHTML = `<div class="back-link" onclick="loadOrgs()">&#x2190; Back to organizations</div>
+        <div class="repo-grid">${data.repos.map(r => {
+        const color = LANG_COLORS[r.language] || '#808080';
+        return `<div class="repo-card" onclick="cloneAndOpen('${r.url}','${r.name}')">
+          <div class="name">${r.name} <span class="badge ${r.private ? 'badge-private' : 'badge-public'}">${r.private ? 'Private' : 'Public'}</span></div>
+          ${r.description ? `<div class="desc">${r.description}</div>` : '<div class="desc" style="opacity:0.3">No description</div>'}
+          <div class="meta">
+            ${r.language ? `<span><span class="lang-dot" style="background:${color}"></span> ${r.language}</span>` : ''}
+            <span>&#x1F4C5; ${new Date(r.updated_at).toLocaleDateString()}</span>
+          </div>
+        </div>`;
+      }).join('')}</div>`;
+    }
+
+    // ── Load local projects ─────────────────────────────────
+    async function loadLocal() {
+      const el = document.getElementById('content');
+      el.innerHTML = '<div class="loading"><div class="spinner"></div> Loading...</div>';
+      const { data } = await api('/api/projects');
+      if (data.projects.length === 0) {
+        el.innerHTML = '<div class="empty"><p>No local projects</p><p>Clone a repository from the tabs above</p></div>';
+        return;
+      }
+      el.innerHTML = `<div class="repo-grid">${data.projects.map(p => `
+        <div class="repo-card" onclick="openProject('${p.path}')">
+          <div class="name">&#x1F4C1; ${p.name}</div>
+          <div class="desc">${p.path}</div>
+          <div class="meta">${p.isGit ? '<span>&#x1F500; Git</span>' : ''}</div>
+        </div>`).join('')}</div>`;
+    }
+
+    // ── Clone and open ──────────────────────────────────────
+    async function cloneAndOpen(url, name) {
+      const overlay = document.getElementById('overlay');
+      const title = document.getElementById('overlay-title');
+      const repo = document.getElementById('overlay-repo');
+      const stepClone = document.getElementById('step-clone');
+      const stepConfig = document.getElementById('step-config');
+      const stepOpen = document.getElementById('step-open');
+
+      overlay.classList.add('active');
+      title.textContent = 'Cloning repository...';
+      repo.textContent = name;
+      stepClone.className = 'overlay-step active';
+      stepClone.querySelector('.check').textContent = '\u23F3';
+
+      try {
+        const res = await fetch('/api/github/clone', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, name }),
+        });
+        const data = await res.json();
+
+        if (!res.ok && res.status !== 409) {
+          overlay.classList.remove('active');
+          toast(data.error || 'Clone failed');
+          return;
+        }
+
+        // Step done
+        stepClone.className = 'overlay-step done';
+        stepClone.querySelector('.check').textContent = '\u2713';
+
+        // Config step
+        stepConfig.className = 'overlay-step active';
+        stepConfig.querySelector('.check').textContent = '\u23F3';
+        await new Promise(r => setTimeout(r, 300));
+        stepConfig.className = 'overlay-step done';
+        stepConfig.querySelector('.check').textContent = '\u2713';
+
+        // Open step
+        stepOpen.className = 'overlay-step active';
+        stepOpen.querySelector('.check').textContent = '\u23F3';
+        title.textContent = 'Opening VS Code...';
+        repo.textContent = `Folder: ${data.folder}`;
+
+        await new Promise(r => setTimeout(r, 500));
+        stepOpen.className = 'overlay-step done';
+        stepOpen.querySelector('.check').textContent = '\u2713';
+
+        await new Promise(r => setTimeout(r, 300));
+
+        // Redirect to VS Code with folder
+        window.location.href = `/?folder=${encodeURIComponent(data.folder)}`;
+
+      } catch (e) {
+        overlay.classList.remove('active');
+        toast('Network error: ' + e.message);
+      }
+    }
+
+    function openProject(dir) {
+      window.location.href = `/?folder=${encodeURIComponent(dir)}`;
+    }
+
+    // ── Search ──────────────────────────────────────────────
+    document.getElementById('search').addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase();
+      if (currentTab === 'local') return;
+      const filtered = allRepos.filter(r => r.name.toLowerCase().includes(q) || (r.description || '').toLowerCase().includes(q));
+      renderRepos(filtered);
+    });
+
+    // ── Tabs ────────────────────────────────────────────────
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentTab = tab.dataset.tab;
+        document.getElementById('search').value = '';
+        if (currentTab === 'mine') loadRepos();
+        else if (currentTab === 'orgs') loadOrgs();
+        else loadLocal();
+      });
+    });
+
+    // ── Init ────────────────────────────────────────────────
+    loadUser();
+    loadRepos();
+  </script>
+</body>
+</html>

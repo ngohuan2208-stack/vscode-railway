@@ -188,6 +188,7 @@ function listWorkspaceProjects() {
 
 module.exports = {
   getGitHubToken, setGitHubToken, clearGitHubToken,
+  githubApi,
   listRepos, listOrgs, listOrgRepos,
   cloneRepo, getSettings, saveSettings,
   listWorkspaceProjects,
