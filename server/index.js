@@ -32,13 +32,13 @@ function startCodeServer() {
     ];
 
     const env = {
-      ...process.env,
       HOME: WORKSPACE_DIR,
       XDG_DATA_HOME: `${WORKSPACE_DIR}/.local/share`,
       XDG_CONFIG_HOME: `${WORKSPACE_DIR}/.config`,
       XDG_CACHE_HOME: `${WORKSPACE_DIR}/.cache`,
+      PATH: process.env.PATH,
+      NODE_ENV: 'production',
     };
-    delete env.PORT;
 
     codeServerProcess = spawn('code-server', args, { stdio: ['ignore', 'pipe', 'pipe'], env });
     let resolved = false, buf = '';
