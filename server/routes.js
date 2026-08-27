@@ -201,22 +201,31 @@ async function handleRequest(req, res) {
 
       const token = github.getGitHubToken();
       const repoName = name || repoUrl.split('/').pop().replace('.git', '');
-      const targetDir = path.join(WORKSPACE_DIR, 'projects', repoName);
+      const projectsDir = path.join(WORKSPACE_DIR, 'projects');
+      const targetDir = path.join(projectsDir, repoName);
+
+      // Ensure projects dir exists
+      if (!fs.existsSync(projectsDir)) fs.mkdirSync(projectsDir, { recursive: true });
 
       // If already exists, just return the path
       if (fs.existsSync(targetDir)) {
         configureGitUser(targetDir);
         log('info', `Repo exists: ${targetDir}`);
-        sendJson(res, 200, { ok: true, dir: targetDir, folder: `/workspace/projects/${repoName}` });
+        sendJson(res, 200, { ok: true, dir: targetDir, folder: targetDir });
         return;
       }
 
       try {
         await github.cloneRepo(repoUrl, targetDir, token);
         configureGitUser(targetDir);
-        log('info', `Cloned: ${repoName}`);
-        sendJson(res, 200, { ok: true, dir: targetDir, folder: `/workspace/projects/${repoName}` });
+        // Verify clone
+        if (!fs.existsSync(targetDir)) {
+          throw new Error('Clone succeeded but directory not found');
+        }
+        log('info', `Cloned: ${repoName} -> ${targetDir}`);
+        sendJson(res, 200, { ok: true, dir: targetDir, folder: targetDir });
       } catch (e) {
+        log('error', `Clone error: ${e.message}`);
         sendJson(res, 500, { error: e.message });
       }
       return;

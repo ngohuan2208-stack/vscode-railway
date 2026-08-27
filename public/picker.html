@@ -298,8 +298,9 @@
 
         await new Promise(r => setTimeout(r, 300));
 
-        // Redirect to VS Code with folder
-        window.location.href = `/?folder=${encodeURIComponent(data.folder)}`;
+        // Redirect to VS Code - use ?folder= with full workspace path
+        const folderPath = data.folder || data.dir;
+        window.location.href = '/?folder=' + encodeURIComponent(folderPath);
 
       } catch (e) {
         overlay.classList.remove('active');
@@ -308,7 +309,7 @@
     }
 
     function openProject(dir) {
-      window.location.href = `/?folder=${encodeURIComponent(dir)}`;
+      window.location.href = '/?folder=' + encodeURIComponent(dir);
     }
 
     // ── Search ──────────────────────────────────────────────
