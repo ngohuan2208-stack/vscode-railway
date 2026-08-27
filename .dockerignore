@@ -11,3 +11,4 @@ workspace
 Dockerfile
 .dockerignore
 railway.toml
+install-extensions.sh

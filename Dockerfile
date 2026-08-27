@@ -35,10 +35,9 @@ ENV PATH="/home/ide/.npm-global/bin:${PATH}"
 USER ide
 WORKDIR /home/ide
 
-# Essential extensions only - users can install more via terminal
+# Minimal extensions - users install more via terminal or marketplace
+# Python, ESLint, Prettier only. All AI/heavy extensions removed.
 RUN code-server --install-extension ms-python.python --force 2>/dev/null || true
-RUN code-server --install-extension dbaeumer.vscode-eslint --force 2>/dev/null || true
-RUN code-server --install-extension esbenp.prettier-vscode --force 2>/dev/null || true
 
 # ── Configure code-server ─────────────────────────────────────────────────────
 RUN mkdir -p /home/ide/.config/code-server \
@@ -70,7 +69,8 @@ RUN mkdir -p /home/ide/.local/share/code-server/User \
   "security.workspace.trust.untrustedFiles": "open",
   "security.workspace.trust.enabled": false,
   "terminal.integrated.defaultProfile.linux": "bash",
-  "terminal.integrated.scrollback": 10000
+  "terminal.integrated.scrollback": 10000,
+  "terminal.integrated.enablePersistentSessions": false
 }
 SETTINGS
 
@@ -95,8 +95,7 @@ USER root
 COPY --chown=ide:ide server/ /app/server/
 COPY --chown=ide:ide public/ /app/public/
 COPY --chown=ide:ide start.sh /app/start.sh
-COPY --chown=ide:ide install-extensions.sh /app/install-extensions.sh
-RUN chmod +x /app/start.sh /app/install-extensions.sh
+RUN chmod +x /app/start.sh
 
 # ── Sandbox directories ────────────────────────────────────────────────────────
 RUN mkdir -p /workspace/projects /workspace/.config /workspace/.local/share \
@@ -109,7 +108,7 @@ ENV WORKSPACE_DIR=/workspace
 ENV HOME=/home/ide
 ENV PATH="/home/ide/.local/bin:/home/ide/.npm-global/bin:${PATH}"
 ENV NPM_CONFIG_PREFIX=/home/ide/.npm-global
-ENV NODE_OPTIONS="--max-old-space-size=256"
+ENV NODE_OPTIONS="--max-old-space-size=192"
 
 # ── Healthcheck ────────────────────────────────────────────────────────────────
 HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \

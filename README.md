@@ -46,7 +46,10 @@ Settings > Volumes > Add Volume > Mount path: `/workspace`
 After login, open a terminal and use it like a real VPS:
 
 ```bash
-# Install npm packages globally
+# Check memory
+free -h
+
+# Install npm packages globally (persists on Volume)
 npm install -g opencode-ai
 
 # Use opencode
@@ -62,7 +65,7 @@ git pull
 git push
 ```
 
-Global npm packages install to `/home/ide/.npm-global` and persist across sessions.
+Global npm packages install to `/workspace/.npm-global` and persist across container restarts.
 
 ## GitHub Integration
 
@@ -92,6 +95,7 @@ After logging in:
 | `/api/github/orgs/:org/repos` | GET | List org repositories |
 | `/api/github/clone` | POST | Clone a repository |
 | `/api/projects` | GET | List workspace projects |
+| `/api/system/memory` | GET | System memory info (auth required) |
 
 ## Architecture
 
