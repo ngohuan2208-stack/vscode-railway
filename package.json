@@ -1,0 +1,16 @@
+{
+  "name": "vscode-railway",
+  "version": "1.0.0",
+  "description": "VS Code Web IDE with authentication proxy for Railway",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "http-proxy": "^1.18.1"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}
