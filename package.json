@@ -1,13 +1,10 @@
 {
   "name": "vscode-railway",
-  "version": "1.0.0",
-  "description": "VS Code Web IDE with authentication proxy for Railway",
-  "main": "server.js",
+  "version": "2.0.0",
+  "description": "VS Code Web IDE with GitHub integration for Railway",
+  "main": "server/index.js",
   "scripts": {
-    "start": "node server.js"
-  },
-  "dependencies": {
-    "http-proxy": "^1.18.1"
+    "start": "node server/index.js"
   },
   "engines": {
     "node": ">=18"

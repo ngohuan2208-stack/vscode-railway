@@ -1,214 +1,151 @@
 # VS Code Railway
 
-A production-ready VS Code Web IDE running on Railway with password authentication.
+VS Code Web IDE running on Railway with password authentication and GitHub integration.
 
 ## Features
 
-- Full VS Code in your browser (via code-server)
-- Password authentication before access
+- Full VS Code in your browser (code-server)
+- Password authentication
+- GitHub integration (browse & clone repos)
 - Persistent workspace with Railway Volumes
-- WebSocket support for terminal and extensions
+- WebSocket support for terminal & extensions
 - 24/7 reliability with auto-restart
-- Low resource usage
+- Modular architecture
 
-## Deploy to Railway
+## Deploy
 
-### 1. Fork or clone this repository
+### 1. Fork this repository
 
-```bash
-git clone https://github.com/your-user/vscode-railway.git
-cd vscode-railway
-git push
-```
+### 2. Create Railway project
 
-### 2. Create a Railway project
+Railway Dashboard > New Project > Deploy from GitHub repo
 
-1. Go to [Railway Dashboard](https://railway.app)
-2. Click **New Project** > **Deploy from GitHub repo**
-3. Select this repository
+### 3. Add Volume
 
-### 3. Add a Volume
-
-1. In your Railway service, go to **Settings** > **Volumes**
-2. Click **Add Volume**
-3. Set mount path to: `/workspace`
-4. This persists your projects across restarts
+Settings > Volumes > Add Volume > Mount path: `/workspace`
 
 ### 4. Add Environment Variables
-
-Go to **Variables** tab and add:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `WEB_PASSWORD` | Yes | Password to access the IDE |
-| `SESSION_SECRET` | Yes | Random string for session encryption |
+| `SESSION_SECRET` | Yes | Random string for sessions |
 | `WORKSPACE_DIR` | No | Workspace path (default: `/workspace`) |
-| `LOG_LEVEL` | No | Log level: `debug`, `info`, `warn`, `error` |
-| `TZ` | No | Timezone (e.g., `UTC`, `Asia/Ho_Chi_Minh`) |
+| `LOG_LEVEL` | No | debug/info/warn/error |
+| `GITHUB_TOKEN` | No | GitHub PAT (can also set via Settings page) |
 
-**Important:**
-- `WEB_PASSWORD`: Use a strong, unique password
-- `SESSION_SECRET`: Generate with `openssl rand -hex 32`
-
-### 5. Generate a session secret
-
+Generate session secret:
 ```bash
 openssl rand -hex 32
 ```
 
-Copy the output and set it as `SESSION_SECRET` in Railway.
+### 5. Deploy & Open
 
-### 6. Deploy
+1. Wait for build to complete
+2. Settings > Networking > Generate Domain
+3. Open the URL
+4. Enter password
 
-Railway will automatically deploy after adding variables. Wait for the build to complete.
+## GitHub Integration
 
-### 7. Open your IDE
+After logging in:
 
-1. Go to **Settings** > **Networking**
-2. Click **Generate Domain** to get a public URL
-3. Open the URL in your browser
-4. Enter your password to access VS Code
+1. Go to **Settings** page (link on login page)
+2. Enter your GitHub Personal Access Token
+3. Browse your repositories
+4. Click **Clone** to clone into workspace
+5. Open VS Code to start editing
 
-## Railway Variables
+### Create a GitHub Token
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `WEB_PASSWORD` | Yes | - | Password for authentication |
-| `SESSION_SECRET` | Yes | random | Secret for session cookies |
-| `PORT` | No | 8080 | Railway sets this automatically |
-| `WORKSPACE_DIR` | No | `/workspace` | Path to persistent workspace |
-| `LOG_LEVEL` | No | `info` | Logging verbosity |
-| `NODE_ENV` | No | `production` | Node.js environment |
-| `TZ` | No | `UTC` | Container timezone |
+1. Go to https://github.com/settings/tokens
+2. Click **Generate new token (classic)**
+3. Select scopes: `repo` (full control)
+4. Copy the token
 
-## Volume
+### API Endpoints
 
-Mount path: `/workspace`
-
-Data stored in volume:
-- `/workspace/projects` - Your project files
-- `/workspace/.config` - Code-server and git configuration
-- `/workspace/.local` - Extensions and data
-- `/workspace/.cache` - Cache files
-
-**Without a volume, all data is lost on container restart.**
-
-## Pre-installed Tools
-
-- git
-- node.js + npm
-- python3 + pip
-- curl, wget, jq
-- bash
-
-Install additional tools via the VS Code terminal.
-
-## Development
-
-```bash
-# Local development
-npm install
-WEB_PASSWORD=test SESSION_SECRET=test node server.js
-
-# Build Docker image
-docker build -t vscode-railway .
-
-# Run locally with Docker
-docker run -p 8080:8080 \
-  -e WEB_PASSWORD=test \
-  -e SESSION_SECRET=test \
-  -v workspace:/workspace \
-  vscode-railway
-```
-
-## Troubleshooting
-
-### 502 Bad Gateway
-
-- Wait 1-2 minutes for code-server to start
-- Check Railway logs for errors
-- Ensure `WEB_PASSWORD` and `SESSION_SECRET` are set
-
-### WebSocket failed / Terminal not working
-
-- Ensure your Railway domain supports WebSocket
-- Check if proxy is forwarding correctly
-- Try refreshing the page
-
-### VS Code not loading
-
-- Check Railway deployment logs
-- Verify the container started successfully
-- Ensure code-server process is running
-
-### Login not working
-
-- Verify `WEB_PASSWORD` is set correctly in Railway
-- Check for typos in the password
-- After changing `WEB_PASSWORD`, restart the service
-
-### Volume not persisting data
-
-- Verify Volume is mounted at `/workspace`
-- Check Railway Volume settings
-- Without Volume, data is ephemeral
-
-### Container keeps restarting
-
-- Check Railway logs for OOM errors
-- Reduce extensions if memory is low
-- Verify `WEB_PASSWORD` is set (required)
-
-### Permission denied
-
-- The container runs with appropriate user permissions
-- If you see permission errors, check file ownership in Volume
-
-### Port error
-
-- Do not set `PORT` manually - Railway sets it automatically
-- If you need a different port, update both Railway service and code
-
-### Out of Memory
-
-- Remove heavy extensions
-- Close unused terminal tabs
-- Consider upgrading Railway plan
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/github/token` | GET | Check if token is set |
+| `/api/github/token` | POST | Save/clear token |
+| `/api/github/repos` | GET | List user repositories |
+| `/api/github/orgs` | GET | List organizations |
+| `/api/github/orgs/:org/repos` | GET | List org repositories |
+| `/api/github/clone` | POST | Clone a repository |
+| `/api/projects` | GET | List workspace projects |
 
 ## Architecture
 
 ```
-Internet
-   |
-   v
-Railway Public URL (PORT)
-   |
-   v
-Node.js Auth Proxy (server.js)
-   |
-   +--> Serves login page (unauthenticated)
-   +--> Proxies to code-server (authenticated)
-   |
-   v
-code-server (internal port 8180)
-   |
-   +--> VS Code Web IDE
-   +--> Terminal
-   +--> Extensions
-   +--> File Manager
-   |
-   v
-Railway Persistent Volume (/workspace)
+Railway URL (PORT)
+  |
+  v
+Node.js Server (server/index.js)
+  |-- Auth (session.js)
+  |-- Routes (routes.js)
+  |-- GitHub API (github.js)
+  |-- HTTP Proxy (proxy.js)
+  |-- WebSocket Proxy (proxy.js)
+  |
+  v
+code-server (internal:8180)
+  |
+  v
+Railway Volume (/workspace)
 ```
 
-## Security
+## Project Structure
 
-- Password never stored in source code
-- Sessions use HttpOnly, SameSite cookies
-- Rate limiting on login attempts (5 attempts / 15 min lockout)
-- Security headers (X-Content-Type-Options, X-Frame-Options, CSP)
-- WebSocket connections require valid session
-- No secrets exposed to frontend
+```
+/
+├── Dockerfile
+├── start.sh
+├── package.json
+├── railway.toml
+├── server/
+│   ├── index.js      # Entry point
+│   ├── config.js      # Configuration
+│   ├── logger.js      # Logging
+│   ├── session.js     # Auth & sessions
+│   ├── github.js      # GitHub API
+│   ├── proxy.js       # HTTP/WS proxy
+│   └── routes.js      # HTTP routes
+├── public/
+│   ├── login.html     # Login page
+│   └── settings.html  # GitHub settings
+└── .env.example
+```
+
+## Development
+
+```bash
+npm install
+WEB_PASSWORD=test SESSION_SECRET=test node server/index.js
+```
+
+## Troubleshooting
+
+**WebSocket error (1006)**
+- Wait 1-2 min for code-server to start
+- Check Railway logs
+- Reload the page
+
+**502 Bad Gateway**
+- Check deployment logs
+- Ensure WEB_PASSWORD is set
+
+**GitHub repos not loading**
+- Verify token has `repo` scope
+- Check token is not expired
+- Try in Settings page
+
+**Volume not persisting**
+- Verify Volume mounted at `/workspace`
+
+**Container restart loop**
+- Check logs for OOM errors
+- Verify environment variables
 
 ## License
 
