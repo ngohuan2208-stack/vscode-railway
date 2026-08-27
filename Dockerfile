@@ -28,11 +28,8 @@ RUN useradd -m -s /bin/bash -G sudo ide \
     && chown -R ide:ide /workspace /home/ide
 
 # ── Persistent PATH for all shells (written as root during build) ─────────────
-RUN cat > /etc/profile.d/npm-path.sh <<'PATHEOF'
-export NPM_CONFIG_PREFIX="/workspace/.npm-global"
-export PATH="/workspace/.npm-global/bin:${PATH}"
-PATHEOF
-chmod +x /etc/profile.d/npm-path.sh
+RUN printf 'export NPM_CONFIG_PREFIX="/workspace/.npm-global"\nexport PATH="/workspace/.npm-global/bin:${PATH}"\n' > /etc/profile.d/npm-path.sh \
+    && chmod +x /etc/profile.d/npm-path.sh
 
 # ── Install extensions as ide user (essential only) ───────────────────────────
 USER ide
