@@ -27,17 +27,19 @@ RUN useradd -m -s /bin/bash -G sudo ide \
     && mkdir -p /home/ide/.npm-global \
     && chown -R ide:ide /workspace /home/ide
 
-# ── Configure npm global directory ────────────────────────────────────────────
-ENV NPM_CONFIG_PREFIX=/home/ide/.npm-global
-ENV PATH="/home/ide/.npm-global/bin:${PATH}"
+# ── Persistent PATH for all shells (written as root during build) ─────────────
+RUN cat > /etc/profile.d/npm-path.sh <<'PATHEOF'
+export NPM_CONFIG_PREFIX="/workspace/.npm-global"
+export PATH="/workspace/.npm-global/bin:${PATH}"
+PATHEOF
+chmod +x /etc/profile.d/npm-path.sh
 
 # ── Install extensions as ide user (essential only) ───────────────────────────
 USER ide
 WORKDIR /home/ide
 
-# Minimal extensions - users install more via terminal or marketplace
-# Python, ESLint, Prettier only. All AI/heavy extensions removed.
-RUN code-server --install-extension ms-python.python --force 2>/dev/null || true
+# NO extensions pre-installed. Users install via marketplace or terminal.
+# This saves ~50-100MB RAM at idle.
 
 # ── Configure code-server ─────────────────────────────────────────────────────
 RUN mkdir -p /home/ide/.config/code-server \
@@ -108,7 +110,9 @@ ENV WORKSPACE_DIR=/workspace
 ENV HOME=/home/ide
 ENV PATH="/home/ide/.local/bin:/home/ide/.npm-global/bin:${PATH}"
 ENV NPM_CONFIG_PREFIX=/home/ide/.npm-global
-ENV NODE_OPTIONS="--max-old-space-size=192"
+# NOTE: NODE_OPTIONS is NOT set globally.
+# Only code-server gets --max-old-space-size via spawn env in index.js.
+# This allows npm/npx to use full available memory for installs.
 
 # ── Healthcheck ────────────────────────────────────────────────────────────────
 HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \

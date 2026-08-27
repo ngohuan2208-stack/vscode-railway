@@ -6,47 +6,6 @@ echo "=== VS Code Railway - Starting ==="
 WORKSPACE_DIR="${WORKSPACE_DIR:-/workspace}"
 HOME_DIR="${HOME:-/home/ide}"
 
-# ── Create swap space (critical for npm install on 1GB Railway) ──────────────
-SWAP_FILE="${WORKSPACE_DIR}/.swapfile"
-setup_swap() {
-  if [ -f "$SWAP_FILE" ]; then
-    # Check if already active
-    if swapon --show 2>/dev/null | grep -q "$SWAP_FILE"; then
-      echo "[init] Swap already active"
-      return 0
-    fi
-    # Try to activate existing swap file
-    sudo swapon "$SWAP_FILE" 2>/dev/null && echo "[init] Swap activated" && return 0
-    echo "[init] WARNING: Could not activate swap"
-    return 1
-  fi
-
-  echo "[init] Creating 512MB swap file..."
-  dd if=/dev/zero of="$SWAP_FILE" bs=1M count=512 2>/dev/null
-  if [ $? -ne 0 ]; then
-    echo "[init] WARNING: Could not create swap file (disk full?)"
-    rm -f "$SWAP_FILE" 2>/dev/null
-    return 1
-  fi
-  chmod 600 "$SWAP_FILE"
-  sudo mkswap "$SWAP_FILE" 2>/dev/null
-  if [ $? -ne 0 ]; then
-    echo "[init] WARNING: Could not format swap file"
-    rm -f "$SWAP_FILE" 2>/dev/null
-    return 1
-  fi
-  sudo swapon "$SWAP_FILE" 2>/dev/null
-  if [ $? -ne 0 ]; then
-    echo "[init] WARNING: Could not enable swap (container restriction)"
-    rm -f "$SWAP_FILE" 2>/dev/null
-    return 1
-  fi
-  echo "[init] Swap enabled: 512MB"
-  return 0
-}
-
-setup_swap || echo "[init] Running without swap - heavy npm installs may OOM"
-
 # ── Environment setup ─────────────────────────────────────────────────────────
 export HOME="${HOME_DIR}"
 
@@ -67,14 +26,7 @@ mkdir -p "${HOME_DIR}/.npm-global/lib"
 # Configure npm to use workspace volume for global installs
 npm config set prefix "${WORKSPACE_DIR}/.npm-global" 2>/dev/null || true
 
-# ── Persistent PATH via profile.d ─────────────────────────────────────────────
-cat > /etc/profile.d/npm-path.sh <<'PATHEOF'
-export NPM_CONFIG_PREFIX="/workspace/.npm-global"
-export PATH="/workspace/.npm-global/bin:${PATH}"
-PATHEOF
-chmod +x /etc/profile.d/npm-path.sh 2>/dev/null || true
-
-# Also write to ide user's bashrc for interactive shells
+# ── Persistent PATH in bashrc ─────────────────────────────────────────────────
 if ! grep -q "npm-global" "${HOME_DIR}/.bashrc" 2>/dev/null; then
   cat >> "${HOME_DIR}/.bashrc" <<'BASHEOF'
 
@@ -147,8 +99,6 @@ fi
 # ── Memory info ────────────────────────────────────────────────────────────────
 echo "[init] Memory:"
 free -h 2>/dev/null || cat /proc/meminfo | head -3 || echo "[init] Cannot read memory"
-echo "[init] Swap:"
-swapon --show 2>/dev/null || echo "[init] No swap"
 
 echo "[init] Starting server..."
 exec node /app/server/index.js

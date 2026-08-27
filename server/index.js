@@ -29,10 +29,10 @@ function startCodeServer() {
       '--auth', 'none',
       '--disable-telemetry',
       '--disable-update-check',
-      '--max-memory=192m',
       WORKSPACE_DIR,
     ];
 
+    // code-server gets its own memory limit - does NOT affect npm/npx in terminal
     const env = {
       HOME: process.env.HOME || '/home/ide',
       NPM_CONFIG_PREFIX: '/workspace/.npm-global',
@@ -197,15 +197,11 @@ server.on('upgrade', handleUpgrade);
 async function main() {
   log('info', '=== VS Code Railway - Starting ===');
   log('info', `Workspace: ${WORKSPACE_DIR}`);
-  log('info', `Node options: ${process.env.NODE_OPTIONS || 'default'}`);
 
   const mem = getMemoryInfo();
   log('info', `System RAM: ${mem.system.totalMB}MB total, ${mem.system.freeMB}MB free`);
-  if (mem.swap.totalMB > 0) {
-    log('info', `Swap: ${mem.swap.totalMB}MB total, ${mem.swap.freeMB}MB free`);
-  } else {
-    log('warn', 'No swap available - npm install may OOM on heavy packages');
-  }
+  log('info', `Node heap limit for code-server: 192MB`);
+  log('info', `npm/npx: no heap limit (uses full available RAM)`);
 
   if (!fs.existsSync(WORKSPACE_DIR)) fs.mkdirSync(WORKSPACE_DIR, { recursive: true });
 
