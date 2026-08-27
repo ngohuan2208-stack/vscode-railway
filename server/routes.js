@@ -172,6 +172,23 @@ async function handleRequest(req, res) {
       return;
     }
 
+    if (url === '/api/github/create-repo' && method === 'POST') {
+      const token = github.getGitHubToken();
+      if (!token) return sendJson(res, 400, { error: 'No GitHub token' });
+      const body = await readBody(req);
+      const { name, description, private: isPrivate, auto_init } = JSON.parse(body);
+      if (!name) return sendJson(res, 400, { error: 'Repo name required' });
+      try {
+        const repo = await github.createRepo(token, { name, description, private: isPrivate, auto_init });
+        log('info', `Created repo: ${repo.full_name}`);
+        sendJson(res, 201, { ok: true, name: repo.name, url: repo.clone_url, full_name: repo.full_name });
+      } catch (e) {
+        log('error', `Create repo failed: ${e.message}`);
+        sendJson(res, 500, { error: e.message });
+      }
+      return;
+    }
+
     if (url === '/api/github/orgs' && method === 'GET') {
       const token = github.getGitHubToken();
       if (!token) return sendJson(res, 400, { error: 'No GitHub token' });

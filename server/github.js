@@ -65,6 +65,40 @@ function githubApi(endpoint, token) {
   });
 }
 
+// ─── Create Repo ─────────────────────────────────────────────────────────────
+async function createRepo(token, { name, description, private: isPrivate, auto_init }) {
+  const body = JSON.stringify({ name, description, private: isPrivate, auto_init });
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: 'api.github.com',
+      path: '/user/repos',
+      method: 'POST',
+      headers: {
+        'User-Agent': 'vscode-railway',
+        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': `token ${token}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+      },
+    };
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          if (res.statusCode >= 400) reject(new Error(json.message || `GitHub API error ${res.statusCode}`));
+          else resolve(json);
+        } catch { reject(new Error('Invalid response')); }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(15000, () => { req.destroy(); reject(new Error('Timeout')); });
+    req.write(body);
+    req.end();
+  });
+}
+
 // ─── List Repos ──────────────────────────────────────────────────────────────
 async function listRepos(token) {
   const repos = [];
@@ -188,7 +222,7 @@ function listWorkspaceProjects() {
 
 module.exports = {
   getGitHubToken, setGitHubToken, clearGitHubToken,
-  githubApi,
+  githubApi, createRepo,
   listRepos, listOrgs, listOrgRepos,
   cloneRepo, getSettings, saveSettings,
   listWorkspaceProjects,

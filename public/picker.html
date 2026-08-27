@@ -2,82 +2,128 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Select Repository - VS Code Railway</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --bg: #1e1e1e; --surface: #252526; --surface2: #2d2d2d; --border: #3c3c3c;
       --text: #cccccc; --text-muted: #808080; --accent: #007acc; --accent-hover: #0098ff;
-      --green: #4caf50; --red: #f44336; --yellow: #ff9800; --purple: #9c27b0;
+      --green: #4caf50; --red: #f44336; --yellow: #ff9800;
     }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100vh;
+      -webkit-tap-highlight-color: transparent;
+    }
 
-    /* ── Loading Overlay ─────────────────────────────────────── */
-    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 9999; flex-direction: column; gap: 24px; }
+    /* ── Loading Overlay ─────────────────────────── */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.88); display: none; align-items: center; justify-content: center; z-index: 9999; flex-direction: column; gap: 20px; padding: 20px; }
     .overlay.active { display: flex; }
-    .overlay-spinner { width: 60px; height: 60px; border: 4px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
-    .overlay-text { font-size: 18px; color: #fff; font-weight: 500; }
-    .overlay-sub { font-size: 13px; color: var(--text-muted); }
-    .overlay-steps { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+    .overlay-spinner { width: 56px; height: 56px; border: 4px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+    .overlay-text { font-size: 18px; color: #fff; font-weight: 600; text-align: center; }
+    .overlay-sub { font-size: 13px; color: var(--text-muted); text-align: center; word-break: break-all; }
+    .overlay-steps { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; width: 100%; max-width: 280px; }
     .overlay-step { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--text-muted); }
     .overlay-step.done { color: var(--green); }
     .overlay-step.active { color: var(--accent); }
-    .overlay-step .check { width: 20px; text-align: center; }
+    .overlay-step .icon { width: 22px; text-align: center; flex-shrink: 0; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Header ─────────────────────────────────────────────── */
-    .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
-    .header-left { display: flex; align-items: center; gap: 16px; }
-    .avatar { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--border); }
-    .user-info h2 { font-size: 16px; color: #fff; font-weight: 600; }
-    .user-info p { font-size: 12px; color: var(--text-muted); }
-    .header-links { display: flex; gap: 8px; }
-    .header-links a { color: var(--text-muted); text-decoration: none; font-size: 13px; padding: 6px 12px; border-radius: 4px; transition: all 0.2s; }
-    .header-links a:hover { color: #fff; background: var(--surface2); }
+    /* ── Header ──────────────────────────────────── */
+    .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 16px; position: sticky; top: 0; z-index: 100; }
+    .header-inner { max-width: 960px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .header-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .avatar { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--border); flex-shrink: 0; }
+    .user-info h2 { font-size: 15px; color: #fff; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-info p { font-size: 11px; color: var(--text-muted); }
+    .header-links { display: flex; gap: 4px; flex-shrink: 0; }
+    .header-links a { color: var(--text-muted); text-decoration: none; font-size: 12px; padding: 6px 10px; border-radius: 4px; transition: all 0.2s; white-space: nowrap; }
+    .header-links a:hover, .header-links a.active { color: #fff; background: var(--accent); }
 
-    /* ── Main ───────────────────────────────────────────────── */
-    .main { max-width: 960px; margin: 0 auto; padding: 32px 24px; }
+    /* ── Main ─────────────────────────────────────── */
+    .main { max-width: 960px; margin: 0 auto; padding: 20px 16px; }
 
-    .search-bar { position: relative; margin-bottom: 24px; }
-    .search-bar input { width: 100%; padding: 12px 16px 12px 44px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: #fff; font-size: 15px; outline: none; }
+    .search-row { display: flex; gap: 8px; margin-bottom: 16px; }
+    .search-bar { flex: 1; position: relative; }
+    .search-bar input {
+      width: 100%; padding: 10px 14px 10px 38px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 6px; color: #fff; font-size: 14px; outline: none; -webkit-appearance: none;
+    }
     .search-bar input:focus { border-color: var(--accent); }
-    .search-bar input::placeholder { color: var(--text-muted); }
-    .search-bar .icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 18px; }
+    .search-bar .icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 16px; }
 
-    .tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
-    .tab { padding: 8px 16px; border-radius: 4px 4px 0 0; cursor: pointer; font-size: 13px; color: var(--text-muted); transition: all 0.2s; border: none; background: none; }
+    .btn { padding: 10px 16px; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; -webkit-tap-highlight-color: transparent; white-space: nowrap; }
+    .btn:active { transform: scale(0.96); }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-success { background: var(--green); color: #fff; }
+    .btn-success:hover { background: #5cb860; }
+    .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: var(--surface2); }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .tabs { display: flex; gap: 2px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tab { padding: 8px 14px; border-radius: 4px 4px 0 0; cursor: pointer; font-size: 13px; color: var(--text-muted); transition: all 0.2s; border: none; background: none; white-space: nowrap; flex-shrink: 0; }
     .tab.active { color: #fff; background: var(--accent); }
     .tab:hover:not(.active) { color: var(--text); background: var(--surface2); }
 
-    .repo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
-    .repo-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; cursor: pointer; transition: all 0.2s; position: relative; }
-    .repo-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-    .repo-card .name { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
-    .repo-card .desc { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .repo-card .meta { display: flex; gap: 12px; font-size: 11px; color: var(--text-muted); }
-    .repo-card .meta span { display: flex; align-items: center; gap: 4px; }
-    .badge { font-size: 10px; padding: 2px 6px; border-radius: 3px; font-weight: 500; }
-    .badge-private { background: rgba(255, 152, 0, 0.15); color: var(--yellow); }
-    .badge-public { background: rgba(76, 175, 80, 0.15); color: var(--green); }
-    .lang-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    /* ── Repo Grid ────────────────────────────────── */
+    .repo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+    .repo-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      padding: 14px; cursor: pointer; transition: all 0.2s; position: relative;
+    }
+    .repo-card:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    .repo-card:active { transform: scale(0.98); }
+    .repo-card .name { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .repo-card .desc { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 18px; }
+    .repo-card .meta { display: flex; gap: 10px; font-size: 11px; color: var(--text-muted); flex-wrap: wrap; }
+    .repo-card .meta span { display: flex; align-items: center; gap: 3px; }
+    .badge { font-size: 10px; padding: 2px 6px; border-radius: 3px; font-weight: 600; }
+    .badge-private { background: rgba(255,152,0,0.15); color: var(--yellow); }
+    .badge-public { background: rgba(76,175,80,0.15); color: var(--green); }
+    .lang-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
 
-    .loading { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 13px; padding: 40px; justify-content: center; }
-    .spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .loading { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 13px; padding: 40px 20px; justify-content: center; }
+    .spinner { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .empty { text-align: center; padding: 48px 20px; color: var(--text-muted); }
+    .empty p { margin-bottom: 6px; font-size: 14px; }
 
-    .empty { text-align: center; padding: 60px 20px; color: var(--text-muted); }
-    .empty p { margin-bottom: 8px; font-size: 14px; }
-
-    .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); text-decoration: none; font-size: 13px; margin-bottom: 20px; }
+    .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); text-decoration: none; font-size: 13px; margin-bottom: 16px; cursor: pointer; }
     .back-link:hover { color: var(--accent); }
 
-    .toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; border-radius: 6px; font-size: 13px; z-index: 10000; animation: slideIn 0.3s ease; }
-    .toast-error { background: var(--red); color: #fff; }
-    @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    /* ── Create Repo Modal ────────────────────────── */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 9998; padding: 16px; }
+    .modal-overlay.active { display: flex; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 28px 24px; width: 100%; max-width: 440px; box-shadow: 0 16px 48px rgba(0,0,0,0.5); }
+    .modal h3 { font-size: 18px; color: #fff; margin-bottom: 16px; }
+    .modal .form-group { margin-bottom: 14px; }
+    .modal label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; }
+    .modal input, .modal select, .modal textarea {
+      width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text); font-size: 14px; outline: none; -webkit-appearance: none;
+    }
+    .modal input:focus, .modal select:focus, .modal textarea:focus { border-color: var(--accent); }
+    .modal textarea { resize: vertical; min-height: 60px; font-family: inherit; }
+    .modal .hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+    .modal-check { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+    .modal-check input { width: auto; }
 
-    @media (max-width: 640px) {
+    .toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 18px; border-radius: 8px; font-size: 13px; z-index: 10000; animation: slideIn 0.3s ease; max-width: calc(100vw - 40px); }
+    .toast-success { background: var(--green); color: #fff; }
+    .toast-error { background: var(--red); color: #fff; }
+    @keyframes slideIn { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    @media (max-width: 600px) {
       .repo-grid { grid-template-columns: 1fr; }
-      .header { flex-direction: column; gap: 12px; align-items: flex-start; }
+      .header-inner { flex-wrap: wrap; }
+      .header-links { width: 100%; justify-content: flex-end; }
+      .search-row { flex-direction: column; }
+      .modal { padding: 20px 16px; }
     }
   </style>
 </head>
@@ -88,39 +134,74 @@
     <div class="overlay-text" id="overlay-title">Cloning repository...</div>
     <div class="overlay-sub" id="overlay-repo"></div>
     <div class="overlay-steps">
-      <div class="overlay-step" id="step-clone"><span class="check">&#x25CB;</span> Cloning repository</div>
-      <div class="overlay-step" id="step-config"><span class="check">&#x25CB;</span> Configuring git</div>
-      <div class="overlay-step" id="step-open"><span class="check">&#x25CB;</span> Opening VS Code</div>
+      <div class="overlay-step" id="step-clone"><span class="icon">&#x25CB;</span> Cloning repository</div>
+      <div class="overlay-step" id="step-config"><span class="icon">&#x25CB;</span> Configuring git</div>
+      <div class="overlay-step" id="step-open"><span class="icon">&#x25CB;</span> Opening VS Code</div>
+    </div>
+  </div>
+
+  <!-- Create Repo Modal -->
+  <div class="modal-overlay" id="create-modal">
+    <div class="modal">
+      <h3>Create New Repository</h3>
+      <div class="form-group">
+        <label>Repository name *</label>
+        <input type="text" id="cr-name" placeholder="my-new-project" pattern="[a-zA-Z0-9._-]+" required>
+        <div class="hint">Letters, numbers, hyphens, dots, underscores</div>
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <input type="text" id="cr-desc" placeholder="Optional description">
+      </div>
+      <div class="form-group">
+        <label>Visibility</label>
+        <select id="cr-visibility">
+          <option value="private">Private</option>
+          <option value="public">Public</option>
+        </select>
+      </div>
+      <label class="modal-check">
+        <input type="checkbox" id="cr-autoinit" checked> Initialize with README
+      </label>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" id="cr-btn" onclick="createRepo()">Create & Clone</button>
+      </div>
     </div>
   </div>
 
   <!-- Header -->
   <div class="header">
-    <div class="header-left">
-      <img class="avatar" id="avatar" src="" alt="">
-      <div class="user-info">
-        <h2 id="username">Loading...</h2>
-        <p>Select a repository to open in VS Code</p>
+    <div class="header-inner">
+      <div class="header-left">
+        <img class="avatar" id="avatar" src="" alt="" style="display:none">
+        <div class="user-info">
+          <h2 id="username">Loading...</h2>
+          <p>Select a repository</p>
+        </div>
       </div>
-    </div>
-    <div class="header-links">
-      <a href="/settings">Settings</a>
-      <a href="/">VS Code</a>
-      <a href="/logout">Logout</a>
+      <div class="header-links">
+        <a href="/settings">Settings</a>
+        <a href="/">IDE</a>
+        <a href="/logout">Logout</a>
+      </div>
     </div>
   </div>
 
   <!-- Main -->
   <div class="main">
-    <div class="search-bar">
-      <span class="icon">&#x1F50D;</span>
-      <input type="text" id="search" placeholder="Search repositories..." autofocus>
+    <div class="search-row">
+      <div class="search-bar">
+        <span class="icon">&#x1F50D;</span>
+        <input type="text" id="search" placeholder="Search repositories..." autocomplete="off">
+      </div>
+      <button class="btn btn-primary" onclick="openModal()">+ New Repo</button>
     </div>
 
     <div class="tabs">
       <button class="tab active" data-tab="mine">My Repos</button>
       <button class="tab" data-tab="orgs">Organizations</button>
-      <button class="tab" data-tab="local">Local Projects</button>
+      <button class="tab" data-tab="local">Local</button>
     </div>
 
     <div id="content">
@@ -130,212 +211,197 @@
 
   <script>
     const LANG_COLORS = {
-      JavaScript: '#f1e05a', TypeScript: '#3178c6', Python: '#3572A5', Java: '#b07219',
-      Go: '#00ADD8', Rust: '#dea584', Ruby: '#701516', PHP: '#4F5D95',
-      'C++': '#f34b7d', C: '#555555', 'C#': '#178600', Swift: '#F05138',
-      Kotlin: '#A97BFF', Dart: '#00B4AB', Shell: '#89e051', HTML: '#e34c26',
-      CSS: '#563d7c', Vue: '#41b883', Svelte: '#ff3e00', Lua: '#000080',
+      JavaScript:'#f1e05a',TypeScript:'#3178c6',Python:'#3572A5',Java:'#b07219',
+      Go:'#00ADD8',Rust:'#dea584',Ruby:'#701516',PHP:'#4F5D95',
+      'C++':'#f34b7d',C:'#555555','C#':'#178600',Swift:'#F05138',
+      Kotlin:'#A97BFF',Dart:'#00B4AB',Shell:'#89e051',HTML:'#e34c26',
+      CSS:'#563d7c',Vue:'#41b883',Svelte:'#ff3e00',Lua:'#000080',Dockerfile:'#384d54',
     };
+    let allRepos = [], currentTab = 'mine', orgsCache = null;
 
-    let allRepos = [];
-    let currentTab = 'mine';
-    let orgsCache = null;
-
-    function toast(msg) {
+    function toast(msg, type='success') {
       const el = document.createElement('div');
-      el.className = 'toast toast-error'; el.textContent = msg;
-      document.body.appendChild(el);
-      setTimeout(() => el.remove(), 4000);
+      el.className = 'toast toast-' + type; el.textContent = msg;
+      document.body.appendChild(el); setTimeout(() => el.remove(), 3500);
     }
-
-    async function api(path) {
-      const res = await fetch(path);
+    async function api(path, opts={}) {
+      const res = await fetch(path, { ...opts, headers: { 'Content-Type': 'application/json', ...opts.headers } });
       return { status: res.status, data: await res.json() };
     }
 
-    // ── Load user info ──────────────────────────────────────
+    // ── User ────────────────────────────────────────────────
     async function loadUser() {
       const { data } = await api('/api/github/user');
       if (data.login) {
         document.getElementById('username').textContent = data.login;
-        document.getElementById('avatar').src = data.avatar_url || '';
-        document.getElementById('avatar').style.display = data.avatar_url ? 'block' : 'none';
+        const av = document.getElementById('avatar');
+        if (data.avatar_url) { av.src = data.avatar_url; av.style.display = 'block'; }
       }
     }
 
-    // ── Load repos ──────────────────────────────────────────
+    // ── Repos ───────────────────────────────────────────────
     async function loadRepos() {
       const el = document.getElementById('content');
-      el.innerHTML = '<div class="loading"><div class="spinner"></div> Loading repositories...</div>';
+      el.innerHTML = '<div class="loading"><div class="spinner"></div> Loading...</div>';
       const { status, data } = await api('/api/github/repos');
-      if (status !== 200) { el.innerHTML = `<div class="empty"><p>${data.error}</p></div>`; return; }
-      allRepos = data.repos;
-      renderRepos(allRepos);
+      if (status !== 200) { el.innerHTML = '<div class="empty"><p>' + (data.error || 'Error') + '</p></div>'; return; }
+      allRepos = data.repos; renderRepos(allRepos);
     }
-
     function renderRepos(repos) {
       const el = document.getElementById('content');
-      if (repos.length === 0) { el.innerHTML = '<div class="empty"><p>No repositories found</p></div>'; return; }
-      el.innerHTML = `<div class="repo-grid">${repos.map(r => {
-        const color = LANG_COLORS[r.language] || '#808080';
-        return `<div class="repo-card" onclick="cloneAndOpen('${r.url}','${r.name}')">
-          <div class="name">${r.name} <span class="badge ${r.private ? 'badge-private' : 'badge-public'}">${r.private ? 'Private' : 'Public'}</span></div>
-          ${r.description ? `<div class="desc">${r.description}</div>` : '<div class="desc" style="opacity:0.3">No description</div>'}
-          <div class="meta">
-            ${r.language ? `<span><span class="lang-dot" style="background:${color}"></span> ${r.language}</span>` : ''}
-            <span>&#x1F4C5; ${new Date(r.updated_at).toLocaleDateString()}</span>
-          </div>
-        </div>`;
-      }).join('')}</div>`;
+      if (!repos.length) { el.innerHTML = '<div class="empty"><p>No repositories found</p></div>'; return; }
+      el.innerHTML = '<div class="repo-grid">' + repos.map(r => {
+        const c = LANG_COLORS[r.language] || '#808080';
+        return '<div class="repo-card" onclick="cloneAndOpen(\'' + esc(r.url) + '\',\'' + esc(r.name) + '\')">' +
+          '<div class="name">' + esc(r.name) + ' <span class="badge ' + (r.private?'badge-private':'badge-public') + '">' + (r.private?'Private':'Public') + '</span></div>' +
+          '<div class="desc">' + esc(r.description||'No description') + '</div>' +
+          '<div class="meta">' +
+          (r.language ? '<span><span class="lang-dot" style="background:'+c+'"></span> '+esc(r.language)+'</span>' : '') +
+          '<span>&#x1F4C5; '+new Date(r.updated_at).toLocaleDateString()+'</span></div></div>';
+      }).join('') + '</div>';
     }
 
-    // ── Load orgs ───────────────────────────────────────────
+    // ── Orgs ────────────────────────────────────────────────
     async function loadOrgs() {
       const el = document.getElementById('content');
-      el.innerHTML = '<div class="loading"><div class="spinner"></div> Loading organizations...</div>';
+      el.innerHTML = '<div class="loading"><div class="spinner"></div> Loading...</div>';
       if (orgsCache) return renderOrgs(orgsCache);
       const { status, data } = await api('/api/github/orgs');
-      if (status !== 200) { el.innerHTML = `<div class="empty"><p>${data.error}</p></div>`; return; }
-      orgsCache = data.orgs;
-      renderOrgs(data.orgs);
+      if (status !== 200) { el.innerHTML = '<div class="empty"><p>'+(data.error||'Error')+'</p></div>'; return; }
+      orgsCache = data.orgs; renderOrgs(data.orgs);
     }
-
     function renderOrgs(orgs) {
       const el = document.getElementById('content');
-      if (orgs.length === 0) { el.innerHTML = '<div class="empty"><p>No organizations</p></div>'; return; }
-      el.innerHTML = `<div class="repo-grid">${orgs.map(o => `
-        <div class="repo-card" onclick="loadOrgRepos('${o.login}')">
-          <div class="name"><img src="${o.avatar_url}" style="width:20px;height:20px;border-radius:4px"> ${o.login}</div>
-          <div class="desc">Organization</div>
-        </div>`).join('')}</div>`;
+      if (!orgs.length) { el.innerHTML = '<div class="empty"><p>No organizations</p></div>'; return; }
+      el.innerHTML = '<div class="repo-grid">' + orgs.map(o =>
+        '<div class="repo-card" onclick="loadOrgRepos(\''+esc(o.login)+'\')">' +
+        '<div class="name"><img src="'+o.avatar_url+'" style="width:20px;height:20px;border-radius:4px"> '+esc(o.login)+'</div>' +
+        '<div class="desc">Organization</div></div>'
+      ).join('') + '</div>';
     }
-
     async function loadOrgRepos(org) {
       const el = document.getElementById('content');
-      el.innerHTML = `<div class="loading"><div class="spinner"></div> Loading ${org} repos...</div>`;
-      const { status, data } = await api(`/api/github/orgs/${org}/repos`);
-      if (status !== 200) { el.innerHTML = `<div class="empty"><p>${data.error}</p></div>`; return; }
-      el.innerHTML = `<div class="back-link" onclick="loadOrgs()">&#x2190; Back to organizations</div>
-        <div class="repo-grid">${data.repos.map(r => {
-        const color = LANG_COLORS[r.language] || '#808080';
-        return `<div class="repo-card" onclick="cloneAndOpen('${r.url}','${r.name}')">
-          <div class="name">${r.name} <span class="badge ${r.private ? 'badge-private' : 'badge-public'}">${r.private ? 'Private' : 'Public'}</span></div>
-          ${r.description ? `<div class="desc">${r.description}</div>` : '<div class="desc" style="opacity:0.3">No description</div>'}
-          <div class="meta">
-            ${r.language ? `<span><span class="lang-dot" style="background:${color}"></span> ${r.language}</span>` : ''}
-            <span>&#x1F4C5; ${new Date(r.updated_at).toLocaleDateString()}</span>
-          </div>
-        </div>`;
-      }).join('')}</div>`;
+      el.innerHTML = '<div class="loading"><div class="spinner"></div> Loading '+esc(org)+'...</div>';
+      const { status, data } = await api('/api/github/orgs/' + org + '/repos');
+      if (status !== 200) { el.innerHTML = '<div class="empty"><p>'+(data.error||'Error')+'</p></div>'; return; }
+      el.innerHTML = '<div class="back-link" onclick="loadOrgs()">&#x2190; Back</div><div class="repo-grid">' + data.repos.map(r => {
+        const c = LANG_COLORS[r.language] || '#808080';
+        return '<div class="repo-card" onclick="cloneAndOpen(\''+esc(r.url)+'\',\''+esc(r.name)+'\')">' +
+          '<div class="name">'+esc(r.name)+' <span class="badge '+(r.private?'badge-private':'badge-public')+'">'+(r.private?'Private':'Public')+'</span></div>' +
+          '<div class="desc">'+esc(r.description||'No description')+'</div>' +
+          '<div class="meta">'+(r.language?'<span><span class="lang-dot" style="background:'+c+'"></span> '+esc(r.language)+'</span>':'')+
+          '<span>&#x1F4C5; '+new Date(r.updated_at).toLocaleDateString()+'</span></div></div>';
+      }).join('') + '</div>';
     }
 
-    // ── Load local projects ─────────────────────────────────
+    // ── Local ───────────────────────────────────────────────
     async function loadLocal() {
       const el = document.getElementById('content');
       el.innerHTML = '<div class="loading"><div class="spinner"></div> Loading...</div>';
       const { data } = await api('/api/projects');
-      if (data.projects.length === 0) {
-        el.innerHTML = '<div class="empty"><p>No local projects</p><p>Clone a repository from the tabs above</p></div>';
-        return;
-      }
-      el.innerHTML = `<div class="repo-grid">${data.projects.map(p => `
-        <div class="repo-card" onclick="openProject('${p.path}')">
-          <div class="name">&#x1F4C1; ${p.name}</div>
-          <div class="desc">${p.path}</div>
-          <div class="meta">${p.isGit ? '<span>&#x1F500; Git</span>' : ''}</div>
-        </div>`).join('')}</div>`;
+      if (!data.projects.length) { el.innerHTML = '<div class="empty"><p>No local projects</p><p>Clone or create a repository above</p></div>'; return; }
+      el.innerHTML = '<div class="repo-grid">' + data.projects.map(p =>
+        '<div class="repo-card" onclick="openProject(\''+esc(p.path)+'\')">' +
+        '<div class="name">&#x1F4C1; '+esc(p.name)+'</div>' +
+        '<div class="desc">'+esc(p.path)+'</div>' +
+        '<div class="meta">'+(p.isGit?'<span>&#x1F500; Git</span>':'')+'</div></div>'
+      ).join('') + '</div>';
     }
 
-    // ── Clone and open ──────────────────────────────────────
+    // ── Clone ───────────────────────────────────────────────
     async function cloneAndOpen(url, name) {
-      const overlay = document.getElementById('overlay');
-      const title = document.getElementById('overlay-title');
-      const repo = document.getElementById('overlay-repo');
-      const stepClone = document.getElementById('step-clone');
-      const stepConfig = document.getElementById('step-config');
-      const stepOpen = document.getElementById('step-open');
-
-      overlay.classList.add('active');
-      title.textContent = 'Cloning repository...';
-      repo.textContent = name;
-      stepClone.className = 'overlay-step active';
-      stepClone.querySelector('.check').textContent = '\u23F3';
+      const ov = document.getElementById('overlay');
+      const st = {
+        clone: document.getElementById('step-clone'),
+        config: document.getElementById('step-config'),
+        open: document.getElementById('step-open'),
+      };
+      ov.classList.add('active');
+      document.getElementById('overlay-title').textContent = 'Cloning repository...';
+      document.getElementById('overlay-repo').textContent = name;
+      setStep(st.clone, 'active');
 
       try {
-        const res = await fetch('/api/github/clone', {
+        const { status, data } = await api('/api/github/clone', { method: 'POST', body: JSON.stringify({ url, name }) });
+        if (status !== 200 && status !== 409) { ov.classList.remove('active'); toast(data.error||'Clone failed','error'); return; }
+
+        setStep(st.clone, 'done');
+        setStep(st.config, 'active');
+        await sleep(400);
+        setStep(st.config, 'done');
+
+        setStep(st.open, 'active');
+        document.getElementById('overlay-title').textContent = 'Opening VS Code...';
+        document.getElementById('overlay-repo').textContent = 'Folder: ' + (data.folder || data.dir);
+        await sleep(600);
+        setStep(st.open, 'done');
+        await sleep(300);
+
+        window.location.href = '/?folder=' + encodeURIComponent(data.folder || data.dir);
+      } catch (e) { ov.classList.remove('active'); toast('Error: '+e.message,'error'); }
+    }
+
+    function openProject(dir) { window.location.href = '/?folder=' + encodeURIComponent(dir); }
+    function setStep(el, state) { el.className = 'overlay-step ' + state; el.querySelector('.icon').textContent = state==='done'?'\u2713':state==='active'?'\u23F3':'\u25CB'; }
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    // ── Create Repo ─────────────────────────────────────────
+    function openModal() { document.getElementById('create-modal').classList.add('active'); document.getElementById('cr-name').focus(); }
+    function closeModal() { document.getElementById('create-modal').classList.remove('active'); }
+
+    async function createRepo() {
+      const name = document.getElementById('cr-name').value.trim();
+      if (!name) { toast('Enter a repo name','error'); return; }
+      const btn = document.getElementById('cr-btn');
+      btn.disabled = true; btn.textContent = 'Creating...';
+      try {
+        const { status, data } = await api('/api/github/create-repo', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url, name }),
+          body: JSON.stringify({
+            name,
+            description: document.getElementById('cr-desc').value.trim(),
+            private: document.getElementById('cr-visibility').value === 'private',
+            auto_init: document.getElementById('cr-autoinit').checked,
+          }),
         });
-        const data = await res.json();
-
-        if (!res.ok && res.status !== 409) {
-          overlay.classList.remove('active');
-          toast(data.error || 'Clone failed');
-          return;
+        if (status === 201) {
+          toast('Repo created! Cloning...');
+          closeModal();
+          document.getElementById('cr-name').value = '';
+          document.getElementById('cr-desc').value = '';
+          await cloneAndOpen(data.url, data.name);
+        } else {
+          toast(data.error || 'Failed to create repo', 'error');
         }
-
-        // Step done
-        stepClone.className = 'overlay-step done';
-        stepClone.querySelector('.check').textContent = '\u2713';
-
-        // Config step
-        stepConfig.className = 'overlay-step active';
-        stepConfig.querySelector('.check').textContent = '\u23F3';
-        await new Promise(r => setTimeout(r, 300));
-        stepConfig.className = 'overlay-step done';
-        stepConfig.querySelector('.check').textContent = '\u2713';
-
-        // Open step
-        stepOpen.className = 'overlay-step active';
-        stepOpen.querySelector('.check').textContent = '\u23F3';
-        title.textContent = 'Opening VS Code...';
-        repo.textContent = `Folder: ${data.folder}`;
-
-        await new Promise(r => setTimeout(r, 500));
-        stepOpen.className = 'overlay-step done';
-        stepOpen.querySelector('.check').textContent = '\u2713';
-
-        await new Promise(r => setTimeout(r, 300));
-
-        // Redirect to VS Code - use ?folder= with full workspace path
-        const folderPath = data.folder || data.dir;
-        window.location.href = '/?folder=' + encodeURIComponent(folderPath);
-
-      } catch (e) {
-        overlay.classList.remove('active');
-        toast('Network error: ' + e.message);
-      }
+      } catch (e) { toast('Error: '+e.message, 'error'); }
+      btn.disabled = false; btn.textContent = 'Create & Clone';
     }
 
-    function openProject(dir) {
-      window.location.href = '/?folder=' + encodeURIComponent(dir);
-    }
+    // Enter key in modal
+    document.getElementById('cr-name').addEventListener('keydown', e => { if (e.key === 'Enter') createRepo(); });
 
     // ── Search ──────────────────────────────────────────────
-    document.getElementById('search').addEventListener('input', (e) => {
+    document.getElementById('search').addEventListener('input', e => {
       const q = e.target.value.toLowerCase();
-      if (currentTab === 'local') return;
-      const filtered = allRepos.filter(r => r.name.toLowerCase().includes(q) || (r.description || '').toLowerCase().includes(q));
-      renderRepos(filtered);
+      if (currentTab !== 'local') renderRepos(allRepos.filter(r => r.name.toLowerCase().includes(q) || (r.description||'').toLowerCase().includes(q)));
     });
 
     // ── Tabs ────────────────────────────────────────────────
-    document.querySelectorAll('.tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        currentTab = tab.dataset.tab;
-        document.getElementById('search').value = '';
-        if (currentTab === 'mine') loadRepos();
-        else if (currentTab === 'orgs') loadOrgs();
-        else loadLocal();
-      });
-    });
+    document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active'); currentTab = t.dataset.tab;
+      document.getElementById('search').value = '';
+      if (currentTab === 'mine') loadRepos();
+      else if (currentTab === 'orgs') loadOrgs();
+      else loadLocal();
+    }));
+
+    // Close modal on backdrop click
+    document.getElementById('create-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
 
     // ── Init ────────────────────────────────────────────────
-    loadUser();
-    loadRepos();
+    loadUser(); loadRepos();
   </script>
 </body>
 </html>
