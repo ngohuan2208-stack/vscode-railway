@@ -211,19 +211,20 @@ async function handleRequest(req, res) {
       if (fs.existsSync(targetDir)) {
         configureGitUser(targetDir);
         log('info', `Repo exists: ${targetDir}`);
-        sendJson(res, 200, { ok: true, dir: targetDir, folder: targetDir });
+        const relPath = path.relative(WORKSPACE_DIR, targetDir);
+        sendJson(res, 200, { ok: true, dir: targetDir, folder: relPath });
         return;
       }
 
       try {
         await github.cloneRepo(repoUrl, targetDir, token);
         configureGitUser(targetDir);
-        // Verify clone
         if (!fs.existsSync(targetDir)) {
           throw new Error('Clone succeeded but directory not found');
         }
+        const relPath = path.relative(WORKSPACE_DIR, targetDir);
         log('info', `Cloned: ${repoName} -> ${targetDir}`);
-        sendJson(res, 200, { ok: true, dir: targetDir, folder: targetDir });
+        sendJson(res, 200, { ok: true, dir: targetDir, folder: relPath });
       } catch (e) {
         log('error', `Clone error: ${e.message}`);
         sendJson(res, 500, { error: e.message });
