@@ -1,16 +1,15 @@
 FROM ubuntu:22.04
 
 LABEL maintainer="vscode-railway"
-LABEL description="Sandboxed VS Code Web IDE with AI extensions"
+LABEL description="VS Code Web IDE for Railway - production-ready"
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV SHELL=/bin/bash
 
-# ── System dependencies ───────────────────────────────────────────────────────
+# ── System dependencies (minimal runtime only) ────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
       curl ca-certificates gnupg git jq unzip wget \
       python3 python3-pip python3-venv openssh-client \
-      build-essential pkg-config libx11-dev libxkbfile-dev \
       sudo tmux htop tree ripgrep fd-find \
       libc6 libstdc++6 libnss3 libatk-bridge2.0-0 \
       libgtk-3-0 libgbm1 libasound2 \
@@ -25,23 +24,21 @@ RUN curl -fsSL https://code-server.dev/install.sh | sh
 RUN useradd -m -s /bin/bash -G sudo ide \
     && echo 'ide ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers \
     && mkdir -p /workspace /home/ide/.vscode/extensions /home/ide/.config/code-server \
+    && mkdir -p /home/ide/.npm-global \
     && chown -R ide:ide /workspace /home/ide
 
-# ── Install extensions as ide user ────────────────────────────────────────────
+# ── Configure npm global directory ────────────────────────────────────────────
+ENV NPM_CONFIG_PREFIX=/home/ide/.npm-global
+ENV PATH="/home/ide/.npm-global/bin:${PATH}"
+
+# ── Install extensions as ide user (essential only) ───────────────────────────
 USER ide
 WORKDIR /home/ide
 
-# Install extensions in parallel
-RUN code-server --install-extension saoudrizwan.claude-dev --force 2>/dev/null || true
-RUN code-server --install-extension Codota-tabnine-vscode --force 2>/dev/null || true
-RUN code-server --install-extension GitHub.copilot --force 2>/dev/null || true
-RUN code-server --install-extension eamodio.gitlens --force 2>/dev/null || true
+# Essential extensions only - users can install more via terminal
 RUN code-server --install-extension ms-python.python --force 2>/dev/null || true
 RUN code-server --install-extension dbaeumer.vscode-eslint --force 2>/dev/null || true
 RUN code-server --install-extension esbenp.prettier-vscode --force 2>/dev/null || true
-RUN code-server --install-extension bradlc.vscode-tailwindcss --force 2>/dev/null || true
-RUN code-server --install-extension formulahendry.auto-rename-tag --force 2>/dev/null || true
-RUN code-server --install-extension christian-kohler.path-intellisense --force 2>/dev/null || true
 
 # ── Configure code-server ─────────────────────────────────────────────────────
 RUN mkdir -p /home/ide/.config/code-server \
@@ -66,13 +63,14 @@ RUN mkdir -p /home/ide/.local/share/code-server/User \
   "files.autoSave": "afterDelay",
   "files.autoSaveDelay": 1000,
   "extensions.autoUpdate": false,
-  "extensions.showRecommendationsOnlyOnDemand": false,
+  "extensions.showRecommendationsOnlyOnDemand": true,
   "git.autofetch": true,
   "git.confirmSync": false,
   "workbench.startupEditor": "none",
   "security.workspace.trust.untrustedFiles": "open",
   "security.workspace.trust.enabled": false,
-  "terminal.integrated.defaultProfile.linux": "bash"
+  "terminal.integrated.defaultProfile.linux": "bash",
+  "terminal.integrated.scrollback": 10000
 }
 SETTINGS
 
@@ -109,7 +107,9 @@ ENV NODE_ENV=production
 ENV LOG_LEVEL=info
 ENV WORKSPACE_DIR=/workspace
 ENV HOME=/home/ide
-ENV PATH="/home/ide/.local/bin:${PATH}"
+ENV PATH="/home/ide/.local/bin:/home/ide/.npm-global/bin:${PATH}"
+ENV NPM_CONFIG_PREFIX=/home/ide/.npm-global
+ENV NODE_OPTIONS="--max-old-space-size=256"
 
 # ── Healthcheck ────────────────────────────────────────────────────────────────
 HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \

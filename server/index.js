@@ -32,12 +32,14 @@ function startCodeServer() {
     ];
 
     const env = {
-      HOME: WORKSPACE_DIR,
+      HOME: process.env.HOME || '/home/ide',
+      NPM_CONFIG_PREFIX: '/home/ide/.npm-global',
       XDG_DATA_HOME: `${WORKSPACE_DIR}/.local/share`,
       XDG_CONFIG_HOME: `${WORKSPACE_DIR}/.config`,
       XDG_CACHE_HOME: `${WORKSPACE_DIR}/.cache`,
       PATH: process.env.PATH,
       NODE_ENV: 'production',
+      NODE_OPTIONS: '--max-old-space-size=256',
     };
 
     codeServerProcess = spawn('code-server', args, { stdio: ['ignore', 'pipe', 'pipe'], env });
@@ -46,7 +48,6 @@ function startCodeServer() {
     function checkReady(data) {
       if (resolved) return;
       buf += data.toString();
-      data.toString().split('\n').forEach(l => { if (l.trim()) log('debug', `[cs] ${l.trim()}`); });
       if (buf.includes('HTTP server listening on')) {
         resolved = true;
         global.__codeServerReady = true;
@@ -57,22 +58,33 @@ function startCodeServer() {
 
     codeServerProcess.stdout.on('data', (data) => {
       const text = data.toString();
-      text.split('\n').forEach(l => { if (l.trim()) log('info', `[cs:out] ${l.trim()}`); });
+      text.split('\n').forEach(l => { if (l.trim()) log('debug', `[cs] ${l.trim()}`); });
       checkReady(data);
     });
     codeServerProcess.stderr.on('data', (data) => {
       const text = data.toString();
-      text.split('\n').forEach(l => { if (l.trim()) log('info', `[cs:err] ${l.trim()}`); });
+      text.split('\n').forEach(l => { if (l.trim()) log('debug', `[cs] ${l.trim()}`); });
       checkReady(data);
     });
-    codeServerProcess.on('error', (e) => { log('error', `cs spawn: ${e.message}`); if (!resolved) reject(e); });
+    codeServerProcess.on('error', (e) => {
+      log('error', `cs spawn: ${e.message}`);
+      if (!resolved) reject(e);
+    });
     codeServerProcess.on('exit', (c, s) => {
       log('error', `cs exit code=${c} sig=${s}`);
       global.__codeServerReady = false;
       codeServerProcess = null;
-      if (!shuttingDown) { log('error', 'cs crashed, exiting for restart'); process.exit(1); }
+      if (!shuttingDown) {
+        log('error', 'cs crashed, exiting for restart');
+        process.exit(1);
+      }
     });
-    setTimeout(() => { if (!resolved) { resolved = true; reject(new Error('cs timeout')); } }, 60000);
+    setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        reject(new Error('cs timeout after 60s'));
+      }
+    }, 60000);
   });
 }
 
@@ -96,13 +108,21 @@ function gracefulShutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
   log('info', `Received ${signal}. Shutting down...`);
+
   server.close(() => {
-    log('info', 'HTTP closed');
+    log('info', 'HTTP server closed');
     if (!codeServerProcess) { process.exit(0); return; }
     codeServerProcess.on('exit', () => process.exit(0));
     codeServerProcess.kill('SIGTERM');
-    setTimeout(() => { if (codeServerProcess) codeServerProcess.kill('SIGKILL'); process.exit(0); }, 10000);
+    setTimeout(() => {
+      if (codeServerProcess) {
+        log('warn', 'cs did not exit, sending SIGKILL');
+        codeServerProcess.kill('SIGKILL');
+      }
+      process.exit(0);
+    }, 10000);
   });
+
   setTimeout(() => process.exit(1), 15000);
 }
 
@@ -117,11 +137,23 @@ server.on('upgrade', handleUpgrade);
 async function main() {
   log('info', '=== VS Code Railway - Starting ===');
   log('info', `Workspace: ${WORKSPACE_DIR}`);
+  log('info', `Node options: ${process.env.NODE_OPTIONS || 'default'}`);
   if (!fs.existsSync(WORKSPACE_DIR)) fs.mkdirSync(WORKSPACE_DIR, { recursive: true });
 
-  try { await startCodeServer(); } catch (e) { log('error', `cs fail: ${e.message}`); process.exit(1); }
-  try { await waitForPort(CODE_SERVER_HOST, CODE_SERVER_PORT, 20, 500); log('info', 'cs port confirmed'); }
-  catch (e) { log('error', `port fail: ${e.message}`); process.exit(1); }
+  try {
+    await startCodeServer();
+  } catch (e) {
+    log('error', `code-server failed to start: ${e.message}`);
+    process.exit(1);
+  }
+
+  try {
+    await waitForPort(CODE_SERVER_HOST, CODE_SERVER_PORT, 20, 500);
+    log('info', 'code-server port confirmed');
+  } catch (e) {
+    log('error', `port check failed: ${e.message}`);
+    process.exit(1);
+  }
 
   server.listen(PORT, '0.0.0.0', () => {
     log('info', `Listening on 0.0.0.0:${PORT}`);
@@ -129,4 +161,7 @@ async function main() {
   });
 }
 
-main().catch((e) => { log('error', `Fatal: ${e.message}`); process.exit(1); });
+main().catch((e) => {
+  log('error', `Fatal: ${e.message}`);
+  process.exit(1);
+});

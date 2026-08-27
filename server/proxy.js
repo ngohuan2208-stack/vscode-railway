@@ -10,6 +10,7 @@ function proxyHttp(req, res) {
     if (key.toLowerCase() !== 'cookie') {
       headers[key] = val;
     } else {
+      // Filter out our session cookie, pass through rest
       const filtered = val.split(';').map(c => c.trim()).filter(c => !c.startsWith('session=')).join('; ');
       if (filtered) headers[key] = filtered;
     }
@@ -50,7 +51,7 @@ function proxyWs(req, socket, head) {
     const lines = [];
     lines.push(`${req.method} ${req.url} HTTP/${req.httpVersion}`);
 
-    // Skip hop-by-hop and already-set headers
+    // Skip hop-by-hop headers and our session cookie
     const skip = new Set([
       'connection', 'proxy-connection', 'keep-alive',
       'transfer-encoding', 'te', 'trailer', 'upgrade',
@@ -59,9 +60,15 @@ function proxyWs(req, socket, head) {
 
     // Forward original headers (minus hop-by-hop)
     for (const [key, val] of Object.entries(req.headers)) {
-      if (!skip.has(key.toLowerCase())) {
-        lines.push(`${key}: ${val}`);
+      const lower = key.toLowerCase();
+      if (skip.has(lower)) continue;
+      // Filter out our session cookie
+      if (lower === 'cookie') {
+        const filtered = val.split(';').map(c => c.trim()).filter(c => !c.startsWith('session=')).join('; ');
+        if (filtered) lines.push(`${key}: ${filtered}`);
+        continue;
       }
+      lines.push(`${key}: ${val}`);
     }
 
     // Set WebSocket upgrade headers
@@ -71,8 +78,6 @@ function proxyWs(req, socket, head) {
     lines.push('');
 
     const raw = lines.join('\r\n');
-    log('debug', `ws sending ${raw.length} bytes to code-server`);
-
     target.write(raw);
 
     // Forward any buffered data from client

@@ -13,5 +13,3 @@ restartPolicyMaxRetries = 10
 NODE_ENV = "production"
 LOG_LEVEL = "info"
 WORKSPACE_DIR = "/workspace"
-SANDBOX_ENABLED = "true"
-SANDBOX_NETWORK = "true"

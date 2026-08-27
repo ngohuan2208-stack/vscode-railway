@@ -12,12 +12,20 @@ function generateSessionId() {
 function createSession(res) {
   const id = generateSessionId();
   sessions.set(id, { id, createdAt: Date.now(), expiresAt: Date.now() + SESSION_MAX_AGE_MS });
-  const isSecure = !!(process.env.RAILWAY_STATIC_URL || process.env.CODESPACE_NAME);
-  res.setHeader('Set-Cookie', [
-    `session=${id}`, 'HttpOnly', 'SameSite=Lax', 'Path=/',
+
+  // Detect Railway HTTPS or other HTTPS proxies
+  const isSecure = !!(process.env.RAILWAY_STATIC_URL || process.env.CODESPACE_NAME || process.env.RAILWAY_PUBLIC_DOMAIN);
+
+  const cookieParts = [
+    `session=${id}`,
+    'HttpOnly',
+    'SameSite=Lax',
+    'Path=/',
     `Max-Age=${Math.floor(SESSION_MAX_AGE_MS / 1000)}`,
-    isSecure ? 'Secure' : '',
-  ].filter(Boolean).join('; '));
+  ];
+  if (isSecure) cookieParts.push('Secure');
+
+  res.setHeader('Set-Cookie', cookieParts.join('; '));
   return id;
 }
 

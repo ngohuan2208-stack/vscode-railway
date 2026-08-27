@@ -84,7 +84,6 @@ async function handleRequest(req, res) {
         session.loginAttempts.delete(ip);
         log('info', `Login OK: ${ip}`);
         session.createSession(res);
-        // Tell frontend where to go
         const redirect = hasGitHubToken() ? '/picker' : '/';
         sendJson(res, 200, { ok: true, redirect });
       } catch { sendJson(res, 400, { error: 'Invalid request' }); }
@@ -221,10 +220,8 @@ async function handleRequest(req, res) {
       const projectsDir = path.join(WORKSPACE_DIR, 'projects');
       const targetDir = path.join(projectsDir, repoName);
 
-      // Ensure projects dir exists
       if (!fs.existsSync(projectsDir)) fs.mkdirSync(projectsDir, { recursive: true });
 
-      // If already exists, just return the path
       if (fs.existsSync(targetDir)) {
         configureGitUser(targetDir);
         log('info', `Repo exists: ${targetDir}`);
@@ -253,15 +250,7 @@ async function handleRequest(req, res) {
       return;
     }
 
-    // ── Root: redirect to picker if has token ─────────────────────────────
-    if (url === '/' && method === 'GET') {
-      // Let code-server handle it via proxy (it serves the IDE)
-      setSecHeaders(res);
-      proxyHttp(req, res);
-      return;
-    }
-
-    // ── Proxy to code-server ──────────────────────────────────────────────
+    // ── Root: proxy to code-server ────────────────────────────────────────
     setSecHeaders(res);
     proxyHttp(req, res);
 

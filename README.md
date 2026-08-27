@@ -10,7 +10,7 @@ VS Code Web IDE running on Railway with password authentication and GitHub integ
 - Persistent workspace with Railway Volumes
 - WebSocket support for terminal & extensions
 - 24/7 reliability with auto-restart
-- Modular architecture
+- Production-ready for 1GB RAM Railway plans
 
 ## Deploy
 
@@ -29,15 +29,10 @@ Settings > Volumes > Add Volume > Mount path: `/workspace`
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `WEB_PASSWORD` | Yes | Password to access the IDE |
-| `SESSION_SECRET` | Yes | Random string for sessions |
 | `WORKSPACE_DIR` | No | Workspace path (default: `/workspace`) |
 | `LOG_LEVEL` | No | debug/info/warn/error |
 | `GITHUB_TOKEN` | No | GitHub PAT (can also set via Settings page) |
-
-Generate session secret:
-```bash
-openssl rand -hex 32
-```
+| `INSTALL_EXTENSIONS` | No | Comma-separated extension IDs |
 
 ### 5. Deploy & Open
 
@@ -45,6 +40,29 @@ openssl rand -hex 32
 2. Settings > Networking > Generate Domain
 3. Open the URL
 4. Enter password
+
+## Terminal Usage
+
+After login, open a terminal and use it like a real VPS:
+
+```bash
+# Install npm packages globally
+npm install -g opencode-ai
+
+# Use opencode
+opencode
+
+# Run projects
+npm run dev
+python3 server.py
+
+# Git operations
+git clone https://github.com/user/repo.git
+git pull
+git push
+```
+
+Global npm packages install to `/home/ide/.npm-global` and persist across sessions.
 
 ## GitHub Integration
 
@@ -105,15 +123,15 @@ Railway Volume (/workspace)
 ├── railway.toml
 ├── server/
 │   ├── index.js      # Entry point
-│   ├── config.js      # Configuration
-│   ├── logger.js      # Logging
-│   ├── session.js     # Auth & sessions
-│   ├── github.js      # GitHub API
-│   ├── proxy.js       # HTTP/WS proxy
-│   └── routes.js      # HTTP routes
+│   ├── config.js     # Configuration
+│   ├── logger.js     # Logging
+│   ├── session.js    # Auth & sessions
+│   ├── github.js     # GitHub API
+│   ├── proxy.js      # HTTP/WS proxy
+│   └── routes.js     # HTTP routes
 ├── public/
-│   ├── login.html     # Login page
-│   └── settings.html  # GitHub settings
+│   ├── login.html    # Login page
+│   └── settings.html # GitHub settings
 └── .env.example
 ```
 
@@ -121,7 +139,7 @@ Railway Volume (/workspace)
 
 ```bash
 npm install
-WEB_PASSWORD=test SESSION_SECRET=test node server/index.js
+WEB_PASSWORD=test node server/index.js
 ```
 
 ## Troubleshooting
