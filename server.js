@@ -164,7 +164,6 @@ function startCodeServer() {
       '--disable-telemetry',
       '--disable-update-check',
       '--locale', 'en',
-      '--disable-workspace-trust',
       WORKSPACE_DIR,
     ];
 
@@ -261,8 +260,7 @@ const httpProxy = require('http-proxy');
 const proxy = httpProxy.createProxyServer({
   target: `http://${CODE_SERVER_HOST}:${CODE_SERVER_PORT}`,
   ws: true,
-  changeOrigin: true,
-  autoRewrite: true,
+  xfwd: true,
 });
 
 proxy.on('error', (err, req, res) => {
@@ -273,9 +271,28 @@ proxy.on('error', (err, req, res) => {
   }
 });
 
-proxy.on('proxyReq', (proxyReq) => {
-  // Strip our session cookie from upstream - code-server runs with auth=none
-  proxyReq.removeHeader('cookie');
+proxy.on('proxyReqWs', (proxyReq, req, socket) => {
+  log('debug', `WS proxy: ${req.url}`);
+  socket.on('error', (err) => {
+    log('error', `WS socket error: ${err.message}`);
+  });
+});
+
+proxy.on('proxyReq', (proxyReq, req) => {
+  // Only strip our session cookie, keep others for code-server
+  const cookies = proxyReq.getHeader('cookie');
+  if (typeof cookies === 'string') {
+    const filtered = cookies
+      .split(';')
+      .map(c => c.trim())
+      .filter(c => !c.startsWith('session='))
+      .join('; ');
+    if (filtered) {
+      proxyReq.setHeader('cookie', filtered);
+    } else {
+      proxyReq.removeHeader('cookie');
+    }
+  }
 });
 
 // ─── Login HTML ─────────────────────────────────────────────────────────────
@@ -291,15 +308,15 @@ function setSecurityHeaders(res) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  // CSP tuned for VS Code web: needs unsafe-inline/eval for Monaco editor
+  // CSP permissive for VS Code web - Monaco editor requires unsafe-inline/eval
   res.setHeader(
     'Content-Security-Policy',
     "default-src 'self' https:; " +
     "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
     "style-src 'self' 'unsafe-inline'; " +
-    "img-src 'self' data: https:; " +
+    "img-src 'self' data: https: blob:; " +
     "font-src 'self' data:; " +
-    "connect-src 'self' ws: wss: https:; " +
+    "connect-src 'self' ws: wss: http: https:; " +
     "frame-src 'self' https:;"
   );
 }
@@ -403,10 +420,11 @@ const server = http.createServer((req, res) => {
 server.on('upgrade', (req, socket, head) => {
   const session = getSessionFromReq(req);
   if (!session) {
-    log('warn', 'WebSocket rejected: no valid session');
+    log('warn', `WebSocket rejected: no session | url=${req.url}`);
     socket.destroy();
     return;
   }
+  log('debug', `WebSocket upgrading: ${req.url}`);
   proxy.upgrade(req, socket, head);
 });
 
