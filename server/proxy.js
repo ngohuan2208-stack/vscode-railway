@@ -43,32 +43,60 @@ function proxyHttp(req, res) {
 
 // ─── WebSocket Proxy ────────────────────────────────────────────────────────
 function proxyWs(req, socket, head) {
-  log('debug', `ws -> ${CODE_SERVER_HOST}:${CODE_SERVER_PORT}${req.url}`);
+  log('debug', `ws upgrade -> ${req.url}`);
 
   const target = net.connect(CODE_SERVER_PORT, CODE_SERVER_HOST, () => {
-    const reqLines = [`${req.method} ${req.url} HTTP/${req.httpVersion}`];
-    const hopByHop = new Set(['connection', 'proxy-connection', 'keep-alive', 'transfer-encoding', 'te', 'trailer']);
+    // Build clean HTTP upgrade request for code-server
+    const lines = [];
+    lines.push(`${req.method} ${req.url} HTTP/${req.httpVersion}`);
 
+    // Skip hop-by-hop and already-set headers
+    const skip = new Set([
+      'connection', 'proxy-connection', 'keep-alive',
+      'transfer-encoding', 'te', 'trailer', 'upgrade',
+      'proxy-authorization', 'proxy-authenticate',
+    ]);
+
+    // Forward original headers (minus hop-by-hop)
     for (const [key, val] of Object.entries(req.headers)) {
-      if (!hopByHop.has(key.toLowerCase())) {
-        reqLines.push(`${key}: ${val}`);
+      if (!skip.has(key.toLowerCase())) {
+        lines.push(`${key}: ${val}`);
       }
     }
-    reqLines.push('Connection: Upgrade');
-    reqLines.push('Upgrade: websocket');
-    reqLines.push('', '');
 
-    target.write(reqLines.join('\r\n'));
-    if (head && head.length > 0) target.write(head);
+    // Set WebSocket upgrade headers
+    lines.push('Connection: Upgrade');
+    lines.push('Upgrade: websocket');
+    lines.push('');
+    lines.push('');
 
+    const raw = lines.join('\r\n');
+    log('debug', `ws sending ${raw.length} bytes to code-server`);
+
+    target.write(raw);
+
+    // Forward any buffered data from client
+    if (head && head.length > 0) {
+      target.write(head);
+    }
+
+    // Bidirectional pipe
     socket.pipe(target);
     target.pipe(socket);
   });
 
-  target.on('error', (err) => { log('error', `ws target: ${err.message}`); socket.destroy(); });
-  socket.on('error', (err) => { log('error', `ws client: ${err.message}`); target.destroy(); });
-  socket.on('close', () => target.destroy());
-  target.on('close', () => socket.destroy());
+  target.on('error', (err) => {
+    log('error', `ws target error: ${err.message}`);
+    socket.destroy();
+  });
+
+  socket.on('error', (err) => {
+    log('error', `ws client error: ${err.message}`);
+    target.destroy();
+  });
+
+  socket.on('close', () => { try { target.destroy(); } catch {} });
+  target.on('close', () => { try { socket.destroy(); } catch {} });
 }
 
 module.exports = { proxyHttp, proxyWs };

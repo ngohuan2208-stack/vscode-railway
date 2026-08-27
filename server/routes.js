@@ -228,8 +228,7 @@ async function handleRequest(req, res) {
       if (fs.existsSync(targetDir)) {
         configureGitUser(targetDir);
         log('info', `Repo exists: ${targetDir}`);
-        const relPath = path.relative(WORKSPACE_DIR, targetDir);
-        sendJson(res, 200, { ok: true, dir: targetDir, folder: relPath });
+        sendJson(res, 200, { ok: true, dir: targetDir, folder: targetDir });
         return;
       }
 
@@ -239,9 +238,8 @@ async function handleRequest(req, res) {
         if (!fs.existsSync(targetDir)) {
           throw new Error('Clone succeeded but directory not found');
         }
-        const relPath = path.relative(WORKSPACE_DIR, targetDir);
         log('info', `Cloned: ${repoName} -> ${targetDir}`);
-        sendJson(res, 200, { ok: true, dir: targetDir, folder: relPath });
+        sendJson(res, 200, { ok: true, dir: targetDir, folder: targetDir });
       } catch (e) {
         log('error', `Clone error: ${e.message}`);
         sendJson(res, 500, { error: e.message });
