@@ -28,8 +28,6 @@ function startCodeServer() {
       '--auth', 'none',
       '--disable-telemetry',
       '--disable-update-check',
-      '--locale', 'en',
-      '--disable-extension', 'github.vscode-pull-request-github',
       WORKSPACE_DIR,
     ];
 
@@ -57,8 +55,16 @@ function startCodeServer() {
       }
     }
 
-    codeServerProcess.stdout.on('data', checkReady);
-    codeServerProcess.stderr.on('data', checkReady);
+    codeServerProcess.stdout.on('data', (data) => {
+      const text = data.toString();
+      text.split('\n').forEach(l => { if (l.trim()) log('info', `[cs:out] ${l.trim()}`); });
+      checkReady(data);
+    });
+    codeServerProcess.stderr.on('data', (data) => {
+      const text = data.toString();
+      text.split('\n').forEach(l => { if (l.trim()) log('info', `[cs:err] ${l.trim()}`); });
+      checkReady(data);
+    });
     codeServerProcess.on('error', (e) => { log('error', `cs spawn: ${e.message}`); if (!resolved) reject(e); });
     codeServerProcess.on('exit', (c, s) => {
       log('error', `cs exit code=${c} sig=${s}`);
