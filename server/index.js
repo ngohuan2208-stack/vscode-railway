@@ -29,12 +29,8 @@ function startCodeServer() {
       '--disable-telemetry',
       '--disable-update-check',
       '--locale', 'en',
-      // Disable problematic extensions
       '--disable-extension', 'github.vscode-pull-request-github',
-      '--disable-extension', 'github.copilot',
-      '--disable-extension', 'github.copilot-chat',
-      // Workspace
-      '--folder', WORKSPACE_DIR,
+      WORKSPACE_DIR,
     ];
 
     const env = {
